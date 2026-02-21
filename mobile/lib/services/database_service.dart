@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/models.dart';
@@ -306,16 +307,19 @@ class DatabaseService {
 
   /// Get alert config
   Future<AlertConfig?> getAlertConfig() async {
-    final json = await getSetting('alert_config');
-    if (json == null) return null;
-    // Parse from JSON - simplified for now
-    return null;
+    final jsonStr = await getSetting('alert_config');
+    if (jsonStr == null) return null;
+    try {
+      final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+      return AlertConfig.fromJson(map);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Save alert config
   Future<void> saveAlertConfig(AlertConfig config) async {
-    // Save as JSON - simplified for now
-    await setSetting('alert_config', config.toJson().toString());
+    await setSetting('alert_config', jsonEncode(config.toJson()));
   }
 
   // ==================== Utility ====================

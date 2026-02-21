@@ -1,60 +1,124 @@
-import 'dart:io';
 import 'dart:typed_data';
+import '../core/constants.dart';
 import '../models/models.dart';
 import 'ai_detection.dart';
 
+/// Configuration for AI detection performance tuning
+class AIDetectionConfig {
+  final int frameIntervalMs;
+  final int inferenceThreads;
+  final bool lowPowerMode;
+  final int resultCacheFrames;
+
+  const AIDetectionConfig({
+    this.frameIntervalMs = AppConstants.aiFrameIntervalMs,
+    this.inferenceThreads = AppConstants.aiInferenceThreads,
+    this.lowPowerMode = false,
+    this.resultCacheFrames = AppConstants.aiResultCacheFrames,
+  });
+
+  int get effectiveFrameIntervalMs =>
+      lowPowerMode ? frameIntervalMs * 2 : frameIntervalMs;
+}
+
 /// Android Implementation using TensorFlow Lite
+/// Optimized for performance: result caching, frame skipping, temporal smoothing
 class AndroidAIDetectionService extends AIDetectionService {
   bool _isReady = false;
-  
-  // TFLite interpreter
+  final AIDetectionConfig config;
+
   dynamic _poseInterpreter;
   dynamic _handInterpreter;
-  
+
+  // Result cache - avoid redundant inference
+  ActivityDetectionResult? _cachedResult;
+  DateTime? _lastInferenceTime;
+  int _frameCount = 0;
+
+  // Temporal smoothing - reduce jitter
+  static const int _smoothingWindow = 3;
+  final List<ActivityDetectionResult> _recentResults = [];
+
+  AndroidAIDetectionService({this.config = const AIDetectionConfig()});
+
   @override
   bool get isReady => _isReady;
-  
+
   @override
   Future<void> initialize() async {
-    // In production, load TFLite models here:
-    // 1. posenet.tflite - Body pose detection
-    // 2. handpose.tflite - Hand detection
-    
-    // Initialize TFLite interpreter
-    // _poseInterpreter = await Tflite.loadModel(
-    //   model: 'assets/models/posenet.tflite',
-    //   numThreads: 4,
-    //   isAsset: true,
-    // );
-    
-    await Future.delayed(const Duration(milliseconds: 500));
-    
+    await Future.delayed(const Duration(milliseconds: 400));
     _isReady = true;
-    print('[Android] AI Detection initialized with TensorFlow Lite');
   }
-  
+
   @override
   Future<ActivityDetectionResult> detectActivity(Uint8List frameBytes) async {
     if (!_isReady) {
       throw Exception('AI service not initialized');
     }
-    
-    // In production:
-    // 1. Preprocess frame (resize to 224x224, normalize)
-    // 2. Run poseInterpreter.run()
-    // 3. Run handInterpreter.run()
-    // 4. Postprocess keypoints
-    // 5. Analyze activity
-    
+
+    final now = DateTime.now();
+    final elapsed = _lastInferenceTime != null
+        ? now.difference(_lastInferenceTime!).inMilliseconds
+        : 999;
+
+    // Frame skip: only run inference when interval has passed
+    if (elapsed >= config.effectiveFrameIntervalMs || _cachedResult == null) {
+      _frameCount = 0;
+      _cachedResult = await _runInference(frameBytes);
+      _lastInferenceTime = now;
+
+      // Update smoothing buffer
+      _recentResults.add(_cachedResult!);
+      if (_recentResults.length > _smoothingWindow) {
+        _recentResults.removeAt(0);
+      }
+    } else {
+      _frameCount++;
+      // Reuse cached result (with optional temporal smoothing)
+      if (_recentResults.isNotEmpty) {
+        _cachedResult = _applyTemporalSmoothing(_recentResults);
+      }
+    }
+
+    return _cachedResult!;
+  }
+
+  Future<ActivityDetectionResult> _runInference(Uint8List frameBytes) async {
+    // Simulated - in production: preprocess, run TFLite, postprocess
     return _simulateDetection();
   }
-  
+
+  ActivityDetectionResult _applyTemporalSmoothing(
+      List<ActivityDetectionResult> results) {
+    // Majority vote on activity type
+    final counts = <ActivityType, int>{};
+    for (final r in results) {
+      counts[r.activity] = (counts[r.activity] ?? 0) + 1;
+    }
+    var best = ActivityType.unknown;
+    var bestCount = 0;
+    for (final e in counts.entries) {
+      if (e.value > bestCount) {
+        bestCount = e.value;
+        best = e.key;
+      }
+    }
+    final last = results.last;
+    final avgConfidence = results.fold<double>(
+            0, (s, r) => s + r.confidence) /
+        results.length;
+    return ActivityDetectionResult(
+      activity: best,
+      confidence: avgConfidence,
+      personDetected: last.personDetected,
+      handsDetected: last.handsDetected,
+      extraData: last.extraData,
+    );
+  }
+
   ActivityDetectionResult _simulateDetection() {
-    // This simulates TFLite inference results
-    // In production, replace with actual TFLite output processing
-    
     final random = DateTime.now().millisecondsSinceEpoch % 100;
-    
+
     if (random < 70) {
       return ActivityDetectionResult(
         activity: ActivityType.studying,
@@ -94,14 +158,13 @@ class AndroidAIDetectionService extends AIDetectionService {
       );
     }
   }
-  
+
   @override
   void dispose() {
-    // Release TFLite resources
-    // _poseInterpreter?.close();
-    // _handInterpreter?.close();
+    _cachedResult = null;
+    _lastInferenceTime = null;
+    _recentResults.clear();
     _isReady = false;
-    print('[Android] AI Detection disposed');
   }
 }
 
@@ -110,61 +173,41 @@ class TFLiteModelManager {
   static final TFLiteModelManager _instance = TFLiteModelManager._internal();
   factory TFLiteModelManager() => _instance;
   TFLiteModelManager._internal();
-  
+
   bool _modelsLoaded = false;
-  
-  Future<void> loadModels() async {
+
+  Future<void> loadModels({int numThreads = 4}) async {
     if (_modelsLoaded) return;
-    
-    // Load TFLite models
-    // In production:
-    // await Tflite.loadModel(
-    //   model: 'assets/models/posenet.tflite',
-    //   labels: 'assets/models/posenet_labels.txt',
-    // );
-    // await Tflite.loadModel(
-    //   model: 'assets/models/handpose.tflite',
-    // );
-    
+
     await Future.delayed(const Duration(milliseconds: 300));
     _modelsLoaded = true;
-    print('[TFLite] Models loaded successfully');
   }
-  
-  /// Analyze pose keypoints from TFLite output
+
   Map<String, dynamic> analyzePose(List<double> keypoints) {
-    // Process pose keypoints
-    // Input: [x1, y1, score1, x2, y2, score2, ...]
-    // Output: {activity, confidence, pose_type}
-    
     if (keypoints.isEmpty) {
       return {
         'activity': ActivityType.away.value,
         'confidence': 0.95,
       };
     }
-    
-    // Simplified analysis
     return {
       'activity': ActivityType.studying.value,
       'confidence': 0.88,
-      'nose_y': keypoints[1],
-      'shoulder_y_avg': (keypoints[11] + keypoints[12]) / 2,
+      'nose_y': keypoints.length > 1 ? keypoints[1] : 0,
+      'shoulder_y_avg': keypoints.length >= 12
+          ? (keypoints[11] + keypoints[12]) / 2
+          : 0,
     };
   }
-  
-  /// Analyze hand keypoints
+
   Map<String, dynamic> analyzeHands(List<double> handKeypoints) {
-    // Input: 21 hand keypoints * 3 (x, y, z)
-    // Output: {near_face, is_moving}
-    
     return {
       'near_face': false,
       'is_moving': true,
       'fingers_extended': 5,
     };
   }
-  
+
   void dispose() {
     _modelsLoaded = false;
   }

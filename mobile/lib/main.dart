@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/app_state.dart';
 import 'core/theme.dart';
 import 'models/models.dart';
+import 'services/settings_service.dart';
 
 void main() {
   runApp(const HomeworkGuardianApp());
@@ -15,8 +16,11 @@ class HomeworkGuardianApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AppState()..initialize(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AppState()..initialize()),
+        ChangeNotifierProvider(create: (_) => SettingsService()..load()),
+      ],
       child: MaterialApp(
         title: 'HomeworkGuardian',
         debugShowCheckedModeBanner: false,
@@ -35,24 +39,36 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppState>(
-      builder: (context, state, _) {
+    return Consumer2<AppState, SettingsService>(
+      builder: (context, state, settings, _) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('HomeworkGuardian'),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.school_rounded, color: AppTheme.primaryColor, size: 22),
+                ),
+                const SizedBox(width: 10),
+                const Text('HomeworkGuardian', style: TextStyle(fontWeight: FontWeight.w600)),
+              ],
+            ),
             actions: [
-              // 同步按钮
               IconButton(
                 icon: Badge(
                   label: Text('${state.pendingCount}'),
                   isLabelVisible: state.pendingCount > 0 && !state.isSyncing,
-                  child: const Icon(Icons.sync),
+                  child: const Icon(Icons.sync_rounded),
                 ),
                 onPressed: state.isSyncing ? null : () => state.syncData(),
               ),
-              // 设置按钮
               IconButton(
-                icon: const Icon(Icons.settings),
+                icon: const Icon(Icons.settings_rounded),
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const SettingsScreen()),
@@ -70,7 +86,7 @@ class HomeScreen extends StatelessWidget {
                   if (state.isSyncing) _SyncProgressBar(state: state),
                   
                   // 状态卡片
-                  _StatusCard(state: state),
+                  _StatusCard(state: state, childName: settings.childName),
                   const SizedBox(height: 16),
                   
                   // 快速统计
@@ -86,7 +102,7 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   
                   // 操作按钮
-                  _ControlButtons(state: state),
+                  _ControlButtons(state: state, childId: settings.childId),
                 ],
               ),
             ),
@@ -135,36 +151,39 @@ class _SyncProgressBar extends StatelessWidget {
 /// 状态卡片
 class _StatusCard extends StatelessWidget {
   final AppState state;
-  const _StatusCard({required this.state});
+  final String childName;
+  const _StatusCard({required this.state, required this.childName});
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: state.isMonitoring 
-          ? Theme.of(context).colorScheme.primaryContainer
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      color: state.isMonitoring
+          ? AppTheme.primaryColor.withOpacity(0.08)
           : Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // 状态指示灯
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 16,
-                  height: 16,
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: 14,
+                  height: 14,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: state.isMonitoring ? AppTheme.successColor : Colors.grey,
+                    color: state.isMonitoring ? AppTheme.successColor : Colors.grey.shade400,
                     boxShadow: state.isMonitoring
-                        ? [const BoxShadow(color: AppTheme.successColor, blurRadius: 8)]
+                        ? [BoxShadow(color: AppTheme.successColor.withOpacity(0.5), blurRadius: 10, spreadRadius: 1)]
                         : null,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  state.isMonitoring ? '正在监控 小明' : '未在监控',
+                  state.isMonitoring ? '正在监控 $childName' : '未在监控',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -390,7 +409,8 @@ class _DataItem extends StatelessWidget {
 /// 控制按钮
 class _ControlButtons extends StatelessWidget {
   final AppState state;
-  const _ControlButtons({required this.state});
+  final String childId;
+  const _ControlButtons({required this.state, required this.childId});
 
   @override
   Widget build(BuildContext context) {
@@ -399,7 +419,7 @@ class _ControlButtons extends StatelessWidget {
         Expanded(
           child: FilledButton.tonalIcon(
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CameraSetupScreen())),
-            icon: const Icon(Icons.camera_alt),
+            icon: const Icon(Icons.camera_alt_rounded),
             label: const Text('摄像头'),
           ),
         ),
@@ -407,7 +427,7 @@ class _ControlButtons extends StatelessWidget {
         Expanded(
           flex: 2,
           child: FilledButton.icon(
-            onPressed: state.isMonitoring ? () => state.stopMonitoring() : () => state.startMonitoring(childId: '小明'),
+            onPressed: state.isMonitoring ? () => state.stopMonitoring() : () => state.startMonitoring(childId: childId),
             icon: Icon(state.isMonitoring ? Icons.stop : Icons.play_arrow),
             label: Text(state.isMonitoring ? '停止监控' : '开始监控'),
             style: FilledButton.styleFrom(
@@ -450,22 +470,337 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
-      body: ListView(
+      appBar: AppBar(
+        title: const Text('设置', style: TextStyle(fontWeight: FontWeight.w600)),
+      ),
+      body: Consumer<SettingsService>(
+        builder: (context, settings, _) {
+          return ListView(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            children: [
+              _Section(title: '孩子信息', children: [
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.person_rounded, color: AppTheme.primaryColor),
+                  ),
+                  title: const Text('孩子姓名'),
+                  subtitle: Text(settings.childName),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _showChildNameDialog(context, settings),
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.infoColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.face_rounded, color: AppTheme.infoColor),
+                  ),
+                  title: const Text('人脸录入'),
+                  subtitle: const Text('已录入 1 张'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {},
+                ),
+              ]),
+              _Section(title: '提醒设置', children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.notifications_rounded),
+                  title: const Text('推送通知'),
+                  subtitle: const Text('检测到异常时推送'),
+                  value: settings.pushNotifications,
+                  onChanged: (v) => settings.setPushNotifications(v),
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.email_rounded),
+                  title: const Text('邮件提醒'),
+                  subtitle: Text(settings.emailAddress.isEmpty ? '未设置' : settings.emailAddress),
+                  value: settings.emailAlerts,
+                  onChanged: (v) => settings.setEmailAlerts(v),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.timer_outlined),
+                  title: const Text('离开提醒阈值'),
+                  subtitle: Text('${settings.leaveThresholdMinutes} 分钟'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _showLeaveThresholdSheet(context, settings),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.sports_esports_outlined),
+                  title: const Text('玩耍提醒阈值'),
+                  subtitle: Text('${settings.playThresholdMinutes} 分钟'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _showPlayThresholdSheet(context, settings),
+                ),
+              ]),
+              _Section(title: '数据同步', children: [
+                ListTile(
+                  leading: const Icon(Icons.cloud_outlined),
+                  title: const Text('服务器地址'),
+                  subtitle: Text(settings.serverUrl, overflow: TextOverflow.ellipsis),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _showServerUrlDialog(context, settings),
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.sync_rounded),
+                  title: const Text('自动同步'),
+                  subtitle: Text('每 ${settings.syncIntervalMinutes} 分钟'),
+                  value: settings.autoSync,
+                  onChanged: (v) => settings.setAutoSync(v),
+                ),
+              ]),
+              _Section(title: 'AI 性能', children: [
+                ListTile(
+                  leading: const Icon(Icons.timer_outlined),
+                  title: const Text('检测间隔'),
+                  subtitle: Text('${settings.aiFrameIntervalMs} ms'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _showAiIntervalSheet(context, settings),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.memory_outlined),
+                  title: const Text('推理线程数'),
+                  subtitle: Text('${settings.aiInferenceThreads}'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _showAiThreadsSheet(context, settings),
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.battery_saver_rounded),
+                  title: const Text('低功耗模式'),
+                  subtitle: const Text('降低检测频率，节省电量'),
+                  value: settings.aiLowPowerMode,
+                  onChanged: (v) => settings.setAiLowPowerMode(v),
+                ),
+              ]),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  static void _showChildNameDialog(BuildContext context, SettingsService settings) {
+    final c = TextEditingController(text: settings.childName);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('孩子姓名'),
+        content: TextField(
+          controller: c,
+          decoration: const InputDecoration(hintText: '输入姓名'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(
+            onPressed: () {
+              if (c.text.trim().isNotEmpty) settings.setChildName(c.text.trim());
+              Navigator.pop(ctx);
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static void _showLeaveThresholdSheet(BuildContext context, SettingsService settings) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => _ThresholdPicker(
+        title: '离开提醒阈值',
+        value: settings.leaveThresholdMinutes,
+        min: 5,
+        max: 60,
+        step: 5,
+        unit: '分钟',
+        onChanged: (v) => settings.setLeaveThresholdMinutes(v),
+      ),
+    );
+  }
+
+  static void _showPlayThresholdSheet(BuildContext context, SettingsService settings) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => _ThresholdPicker(
+        title: '玩耍提醒阈值',
+        value: settings.playThresholdMinutes,
+        min: 1,
+        max: 30,
+        step: 1,
+        unit: '分钟',
+        onChanged: (v) => settings.setPlayThresholdMinutes(v),
+      ),
+    );
+  }
+
+  static void _showServerUrlDialog(BuildContext context, SettingsService settings) {
+    final c = TextEditingController(text: settings.serverUrl);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('服务器地址'),
+        content: TextField(
+          controller: c,
+          decoration: const InputDecoration(hintText: 'http://192.168.1.100:8000'),
+          keyboardType: TextInputType.url,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(
+            onPressed: () {
+              if (c.text.trim().isNotEmpty) settings.setServerUrl(c.text.trim());
+              Navigator.pop(ctx);
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static void _showAiIntervalSheet(BuildContext context, SettingsService settings) {
+    const options = [250, 500, 750, 1000, 1500, 2000];
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => _OptionPicker(
+        title: '检测间隔',
+        options: options,
+        value: settings.aiFrameIntervalMs,
+        format: (v) => '$v ms',
+        onChanged: (v) => settings.setAiFrameIntervalMs(v),
+      ),
+    );
+  }
+
+  static void _showAiThreadsSheet(BuildContext context, SettingsService settings) {
+    const options = [1, 2, 4, 6];
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => _OptionPicker(
+        title: '推理线程数',
+        options: options,
+        value: settings.aiInferenceThreads,
+        format: (v) => '$v',
+        onChanged: (v) => settings.setAiInferenceThreads(v),
+      ),
+    );
+  }
+}
+
+class _ThresholdPicker extends StatefulWidget {
+  final String title;
+  final int value;
+  final int min;
+  final int max;
+  final int step;
+  final String unit;
+  final ValueChanged<int> onChanged;
+
+  const _ThresholdPicker({
+    required this.title,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.step,
+    required this.unit,
+    required this.onChanged,
+  });
+
+  @override
+  State<_ThresholdPicker> createState() => _ThresholdPickerState();
+}
+
+class _ThresholdPickerState extends State<_ThresholdPicker> {
+  late int _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final options = <int>[];
+    for (var i = widget.min; i <= widget.max; i += widget.step) {
+      options.add(i);
+    }
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _Section(title: '孩子信息', children: [
-            ListTile(leading: const Icon(Icons.person), title: const Text('孩子姓名'), subtitle: const Text('小明'), trailing: const Icon(Icons.chevron_right), onTap: () {}),
-            ListTile(leading: const Icon(Icons.face), title: const Text('人脸录入'), subtitle: const Text('已录入 1 张'), trailing: const Icon(Icons.chevron_right), onTap: () {}),
-          ]),
-          _Section(title: '提醒设置', children: [
-            SwitchListTile(secondary: const Icon(Icons.notifications), title: const Text('推送通知'), subtitle: const Text('检测到异常时推送'), value: true, onChanged: (v) {}),
-            SwitchListTile(secondary: const Icon(Icons.email), title: const Text('邮件提醒'), subtitle: const Text('parent@example.com'), value: true, onChanged: (v) {}),
-            ListTile(leading: const Icon(Icons.timer), title: const Text('离开提醒阈值'), subtitle: const Text('15 分钟'), trailing: const Icon(Icons.chevron_right), onTap: () {}),
-          ]),
-          _Section(title: '数据同步', children: [
-            ListTile(leading: const Icon(Icons.cloud), title: const Text('服务器地址'), subtitle: const Text('http://192.168.1.100:8000'), trailing: const Icon(Icons.chevron_right), onTap: () {}),
-            SwitchListTile(secondary: const Icon(Icons.sync), title: const Text('自动同步'), subtitle: const Text('每 5 分钟'), value: true, onChanged: (v) {}),
-          ]),
+          Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: options.map((v) {
+              final selected = _value == v;
+              return ChoiceChip(
+                label: Text('$v ${widget.unit}'),
+                selected: selected,
+                onSelected: (_) {
+                  setState(() => _value = v);
+                  widget.onChanged(v);
+                  Navigator.pop(context);
+                },
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OptionPicker<T> extends StatelessWidget {
+  final String title;
+  final List<T> options;
+  final T value;
+  final String Function(T) format;
+  final ValueChanged<T> onChanged;
+
+  const _OptionPicker({
+    required this.title,
+    required this.options,
+    required this.value,
+    required this.format,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: options.map((v) {
+              final selected = value == v;
+              return ChoiceChip(
+                label: Text(format(v)),
+                selected: selected,
+                onSelected: (_) {
+                  onChanged(v);
+                  Navigator.pop(context);
+                },
+              );
+            }).toList(),
+          ),
         ],
       ),
     );

@@ -195,6 +195,17 @@ class AlertConfig {
     };
   }
 
+  factory AlertConfig.fromJson(Map<String, dynamic> json) {
+    return AlertConfig(
+      childId: json['child_id'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      leaveThresholdMinutes: json['leave_threshold_minutes'] as int? ?? 15,
+      playWhileWorkThresholdMinutes: json['play_while_work_threshold_minutes'] as int? ?? 5,
+      enableEmail: json['enable_email'] as bool? ?? true,
+      enableSound: json['enable_sound'] as bool? ?? true,
+    );
+  }
+
   AlertConfig copyWith({
     String? childId,
     String? email,
