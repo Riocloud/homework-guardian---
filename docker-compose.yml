@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: homework-guardian-db
+    environment:
+      POSTGRES_USER: homeworkguardian
+      POSTGRES_PASSWORD: your_secure_password
+      POSTGRES_DB: homeworkguardian
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U homeworkguardian"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - homework-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: homework-guardian-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - homework-network
+
+  # Backend API Server (GPU Accelerated)
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: homework-guardian-server
+    ports:
+      - "8000:8000"
+      - "8001:8001"  # For metrics
+    environment:
+      DATABASE_URL: postgresql+asyncpg://homeworkguardian:your_secure_password@postgres:5432/homeworkguardian
+      REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: "587"
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      NVIDIA_VISIBLE_DEVICES: all
+      CUDA_VISIBLE_DEVICES: "0"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - upload_data:/data
+      - ./server:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - homework-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: homework-guardian-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - server
+    networks:
+      - homework-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  upload_data:
+
+networks:
+  homework-network:
+    driver: bridge
+
+# GPU Requirements Comment
+# To enable GPU support:
+# 1. Install NVIDIA Driver (525+)
+# 2. Install NVIDIA Container Toolkit
+# 3. Add --gpus all to docker compose command
+# 
+# Run with: docker compose up -d --build
