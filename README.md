@@ -54,7 +54,7 @@
 | **本地 AI** | CoreML (iOS) / TFLite (Android) | 边缘计算加速 |
 | **姿态检测** | MediaPipe / Vision Framework | 实时姿态分析 |
 | **服务器** | FastAPI + Python | REST API |
-| **GPU 加速** | CUDA + PyTorch | 服务端深度学习 |
+| **GPU 加速** | CUDA + PyTorch | 服务端深度学习 (Linux GPU 服务器) |
 | **数据库** | PostgreSQL + Redis | 数据存储与缓存 |
 | **推送** | flutter_local_notifications | 本地通知 |
 
@@ -155,13 +155,15 @@ homework-guardian/
 
 ## 🚀 快速开始
 
-### 1. 服务器端部署
+### 1. 服务器端部署 (Linux GPU 服务器)
+
+支持部署在带有 NVIDIA GPU 的 Linux 服务器上 (如家用主机、RTX 4060+/5060ti/5070ti 等)。
 
 #### 前置要求
 
 - Docker + Docker Compose
-- NVIDIA GPU (RTX 5070ti+)
-- CUDA 12.x
+- NVIDIA GPU (RTX 4060+ / 5060ti / 5070ti 等)
+- CUDA 11.8+ / 12.x
 
 #### 启动服务
 

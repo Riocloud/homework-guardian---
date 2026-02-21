@@ -98,5 +98,8 @@ networks:
 # 1. Install NVIDIA Driver (525+)
 # 2. Install NVIDIA Container Toolkit
 # 3. Add --gpus all to docker compose command
-# 
+#
+# Supported GPUs: RTX 4060+, 5060ti, 5070ti, A4000, A5000, etc.
+# Minimum: 4GB VRAM
+#
 # Run with: docker compose up -d --build
