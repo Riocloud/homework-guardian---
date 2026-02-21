@@ -363,7 +363,7 @@ flutter test test/database_test.dart
 
 ## 📄 许可证
 
-MIT License - see [LICENSE](LICENSE) for details.
+Apache License 2.0 - see [LICENSE](LICENSE) for details.
 
 ---
 
@@ -379,7 +379,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## 📞 联系方式
 
 - 作者: Vino
-- Email: hello@example.com
+- 
 - GitHub: https://github.com/vino/homework-guardian
 
 ---

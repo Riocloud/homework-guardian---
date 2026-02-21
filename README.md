@@ -1,6 +1,6 @@
 # 🏠 HomeworkGuardian - 儿童作业监控系统
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-green.svg)]()
 [![AI](https://img.shields.io/badge/AI-CoreML%20%7C%20TFLite-orange.svg)]()
 
@@ -363,7 +363,7 @@ flutter test test/database_test.dart
 
 ## 📄 许可证
 
-MIT License - see [LICENSE](LICENSE) for details.
+Apache License 2.0 - see [LICENSE](LICENSE) for details.
 
 ---
 
@@ -379,8 +379,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## 📞 联系方式
 
 - 作者: Vino
-- Email: hello@example.com
-- GitHub: https://github.com/vino/homework-guardian
+- GitHub: https://github.com/Riocloud
 
 ---
 
