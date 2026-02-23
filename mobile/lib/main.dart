@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/app_state.dart';
 import 'core/theme.dart';
 import 'models/models.dart';
+import 'screens/splash_screen.dart';
 import 'services/settings_service.dart';
 
 void main() {
@@ -27,7 +28,11 @@ class HomeworkGuardianApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.system,
-        home: const HomeScreen(),
+        initialRoute: '/splash',
+        routes: {
+          '/splash': (_) => const SplashScreen(),
+          '/': (_) => const HomeScreen(),
+        },
       ),
     );
   }

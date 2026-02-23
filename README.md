@@ -226,6 +226,14 @@ flutter build apk --debug
 flutter build ipa --debug
 ```
 
+#### 应用图标
+
+首次构建前可生成应用图标（需已配置 `assets/images/app_icon.png`）：
+
+```bash
+dart run flutter_launcher_icons
+```
+
 #### 项目配置
 
 编辑 `mobile/lib/services/api_client.dart`:
@@ -360,6 +368,31 @@ flutter test test/database_test.dart
 3. 提交更改 (`git commit -m 'Add amazing feature'`)
 4. 推送分支 (`git push origin feature/amazing-feature`)
 5. 打开 Pull Request
+
+---
+
+## 📋 更新日志
+
+### v1.0.0 (2026-02-22)
+
+#### ✨ 新增功能
+
+- **开机动画**：移动端添加简洁明了的开机启动动画，包含品牌 Logo 渐变淡入与缩放效果
+- **应用图标**：为移动端设计简洁的 Indigo 渐变风格应用图标（盾牌 + 书本元素）
+- **单元测试**：为复杂功能增加单元测试覆盖
+  - 服务端：`test_analysis_service.py` - 分析服务元数据处理、视频处理、报告生成
+  - 移动端：`app_state_test.dart` - App 状态管理初始状态
+  - 移动端：`upload_service_test.dart` - SyncResult、ActivityRecord 上传数据结构
+
+#### 🐛 Bug 修复
+
+- 修复 `gpu_detector.py` 中 docstring 缩进错误导致的 `IndentationError`
+- 修复 Analysis Service 测试在缺少 cv2 依赖时的导入问题（添加 `pytest.importorskip`）
+
+#### 🔧 改进
+
+- 移动端主入口采用路由方式 (`/splash` → `/`) 以支持开机动画流畅过渡
+- 应用图标支持 Android 与 iOS 的 Adaptive Icon
 
 ---
 

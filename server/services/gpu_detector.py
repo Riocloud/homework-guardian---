@@ -82,9 +82,9 @@ class GPUDetector:
             model: PyTorch model
             
         Returns:
-            Optim """
+            Optimized model
+        """
         if torch.cuda.is_available():
-ized model
                    # Use torch.compile for optimization (PyTorch 2.0+)
             try:
                 model = torch.compile(model, mode="reduce-overhead")
